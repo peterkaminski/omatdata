@@ -28,10 +28,11 @@ def load_movie_names(infile):
 
 # Get movie IDs given movie name
 def get_movies(movie_name):
+    movie_name = movie_name.lower()
     movies = omdb.search_movie(movie_name)
     return {
-        'included': [ movie for movie in movies if movie['title'] == movie_name or movie['title'] == "The " + movie_name ],
-        'excluded': [ movie for movie in movies if movie['title'] != movie_name and movie['title'] != "The " + movie_name ] }
+        'included': [ movie for movie in movies if movie['title'].lower() == movie_name or movie['title'].lower() == "the " + movie_name ],
+        'excluded': [ movie for movie in movies if movie['title'].lower() != movie_name and movie['title'].lower() != "the " + movie_name ] }
 
 # Insert movie given movie data
 def insert_movie(movies_table, data):

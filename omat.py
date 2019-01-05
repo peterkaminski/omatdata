@@ -18,6 +18,7 @@ from airtable import Airtable # pip install airtable-python-wrapper
 def init_argparse():
     parser = argparse.ArgumentParser(description='Load OMDb metadata into an Airtable base.')
     parser.add_argument('--movies', required=True, help='path to a text file containing names of movies, one per line')
+    parser.add_argument('--fold-the', action='store_true', help='move "The" from beginning to end of title for better sorting')
     parser.add_argument('--include-adult', action='store_true', help='include movies with genre "Adult"')
     return parser
 
@@ -28,11 +29,19 @@ def load_movie_names(infile):
 
 # Get movie IDs given movie name
 def get_movies(movie_name):
-    movie_name = movie_name.lower()
+    movie_name = movie_name.rsplit(', The')[0].lower().replace(',', '').replace(':', '')
     movies = omdb.search_movie(movie_name)
     return {
-        'included': [ movie for movie in movies if movie['title'].lower() == movie_name or movie['title'].lower() == "the " + movie_name ],
-        'excluded': [ movie for movie in movies if movie['title'].lower() != movie_name and movie['title'].lower() != "the " + movie_name ] }
+        'included':
+          [ movie
+          for movie in movies
+          if movie['title'].lower().replace(',', '').replace(':', '') == movie_name
+          or movie['title'].lower().replace(',', '').replace(':', '') == "the " + movie_name ],
+        'excluded':
+          [ movie
+          for movie in movies
+          if movie['title'].lower().replace(',', '').replace(':', '') != movie_name
+          and movie['title'].lower().replace(',', '').replace(':', '') != "the " + movie_name ] }
 
 # Insert movie given movie data
 def insert_movie(movies_table, data):
@@ -63,9 +72,12 @@ def get_multiple_records(table, field, names):
     return [records[name]['id'] for name in records]
 
 # Transform metadata from OMDb to Airtable columns
-def transform_data(data):
+def transform_data(args, data):
+    title = data['title']
+    if args.fold_the and title.startswith('The '):
+        title = title.replace('The ', '', 1) + ', The'
     return {
-        'Title': "{} ({})".format(data['title'], data['year']),
+        'Title': "{} ({})".format(title, data['year']),
         'Directors': data['directors'],
         'Actors': data['actors'],
         'Year': int(data['year']),
@@ -108,14 +120,14 @@ def main():
         print(movie_name.rstrip())
         movies = get_movies(movie_name.rstrip())
         for movie in movies['included']:
-            print(' ', movie['title'])
             movie_data = get_movie_data(movie['imdb_id'])
             if movie_data['genre'] == 'Adult' and not args.include_adult:
                 continue
+            print('  {} ({})'.format(movie['title'], movie['year']))
             movie_data['directors'] = get_multiple_records(directors_table, 'Name', movie_data['director'])
             movie_data['actors'] = get_multiple_records(actors_table, 'Name', movie_data['actors'])
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
-            data_transformed = transform_data(movie_data)
+            data_transformed = transform_data(args, movie_data)
             insert_movie(movies_table, data_transformed)
 
 # Run this script

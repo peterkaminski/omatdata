@@ -4,12 +4,13 @@
 #
 # omat.py
 #
-# Given a file with a list of movie titles, inserts the movie
-# metadata from OMDb into an Airtable base.
+# Given a file with a list of movie titles or IMDB URLs, inserts the
+# movie metadata from OMDb into an Airtable base.  Loads the metadata
+# from OMDb, *no* data from IMDB.
 #
 ################################################################
 
-import os
+import os # core
 import argparse # pip install argparse
 import omdb # pip install omdb
 from airtable import Airtable # pip install airtable-python-wrapper
@@ -20,6 +21,7 @@ def init_argparse():
     parser.add_argument('--movies', required=True, help='path to a text file containing names of movies, one per line')
     parser.add_argument('--fold-the', action='store_true', help='move "The" from beginning to end of title for better sorting')
     parser.add_argument('--include-adult', action='store_true', help='include movies with genre "Adult"')
+    parser.add_argument('--verbose', action='store_true', help='print more information about process')
     return parser
 
 # Load movie names
@@ -27,21 +29,28 @@ def load_movie_names(infile):
     with open(infile) as file:
         return file.readlines()
 
-# Get movie IDs given movie name
-def get_movies(movie_name):
-    movie_name = movie_name.rsplit(', The')[0].lower().replace(',', '').replace(':', '')
-    movies = omdb.search_movie(movie_name)
+# Get movie IDs given movie name or IMDB URL
+def get_movie_ids(name):
+    # check for IMDB URL
+    url_split = name.split('https://www.imdb.com/title/')
+    if len(url_split) == 2:
+        return {
+            'included': [url_split[1].split('/')[0]],
+            'excluded': [] }
+    # otherwise use name
+    name = name.rsplit(', The')[0].lower().replace(',', '').replace(':', '')
+    movies = omdb.search_movie(name)
     return {
         'included':
-          [ movie
+          [ movie['imdb_id']
           for movie in movies
-          if movie['title'].lower().replace(',', '').replace(':', '') == movie_name
-          or movie['title'].lower().replace(',', '').replace(':', '') == "the " + movie_name ],
+          if movie['title'].lower().replace(',', '').replace(':', '') == name
+          or movie['title'].lower().replace(',', '').replace(':', '') == "the " + name ],
         'excluded':
-          [ movie
+          [ movie['imdb_id']
           for movie in movies
-          if movie['title'].lower().replace(',', '').replace(':', '') != movie_name
-          and movie['title'].lower().replace(',', '').replace(':', '') != "the " + movie_name ] }
+          if movie['title'].lower().replace(',', '').replace(':', '') != name
+          and movie['title'].lower().replace(',', '').replace(':', '') != "the " + name ] }
 
 # Insert movie given movie data
 def insert_movie(movies_table, data):
@@ -118,17 +127,20 @@ def main():
     # read movie names, insert movies
     for movie_name in load_movie_names(args.movies):
         print(movie_name.rstrip())
-        movies = get_movies(movie_name.rstrip())
-        for movie in movies['included']:
-            movie_data = get_movie_data(movie['imdb_id'])
+        movie_ids = get_movie_ids(movie_name.rstrip())
+        for movie_id in movie_ids['included']:
+            movie_data = get_movie_data(movie_id)
             if movie_data['genre'] == 'Adult' and not args.include_adult:
                 continue
-            print('  {} ({})'.format(movie['title'], movie['year']))
+            print('  {} ({})'.format(movie_data['title'], movie_data['year']))
             movie_data['directors'] = get_multiple_records(directors_table, 'Name', movie_data['director'])
             movie_data['actors'] = get_multiple_records(actors_table, 'Name', movie_data['actors'])
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
             data_transformed = transform_data(args, movie_data)
             insert_movie(movies_table, data_transformed)
+        if args.verbose:
+            for movie_id in movie_ids['excluded']:
+                print('  excluding {}'.format(movie_id))
 
 # Run this script
 if __name__ == "__main__":

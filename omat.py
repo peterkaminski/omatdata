@@ -14,7 +14,7 @@ import os # core
 import ast # core
 import argparse # pip install argparse
 import omdb # pip install omdb
-from airtable import Airtable # pip install airtable-python-wrapper
+from airtable import Airtable # pip install airtable-python-wrapper (use patched version)
 
 # Set up argparse
 def init_argparse():

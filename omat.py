@@ -57,28 +57,34 @@ def get_movie_ids(name):
 
 # Upsert movie given movie data
 def upsert_movie(args, movies_table, data):
+    # find existing record, if any
+    record = movies_table.match('IMDB URL', data['IMDB URL'])
+
     # set all --set-field fields
     for field in args.set_field:
         # next(iter(my_dict.items())) gets the first k,v from my_dict
         (k, v) = next(iter(ast.literal_eval('{'+field+'}').items()))
         data[k] = v
-    # find existing record, if any
-    record = movies_table.match('IMDB URL', data['IMDB URL'])
-    if len(record) == 0:
-        # insert
-        movies_table.insert(data)
-    else:
-        # update while merging in --append-field fields
+
+    # merge --append-field fields into record if it exists
+    if len(record) != 0:
         record_fields = record['fields']
         # use dictionary unpacking to update `record` with `data`
         data = {**record_fields, **data}
-        for field in args.append_field:
-            # next(iter(my_dict.items())) gets the first k,v from my_dict
-            (k, v) = next(iter(ast.literal_eval('{'+field+'}').items()))
-            if k in data:
-                data[k].append(v)
-            else:
-                data[k] = [v]
+
+    # merge --append-field fields into data
+    for field in args.append_field:
+        # next(iter(my_dict.items())) gets the first k,v from my_dict
+        (k, v) = next(iter(ast.literal_eval('{'+field+'}').items()))
+        if k in data:
+            data[k].append(v)
+        else:
+            data[k] = [v]
+
+    # now insert or update
+    if len(record) == 0:
+        movies_table.insert(data)
+    else:
         movies_table.update(record['id'], data)
 
 # Get movie metadata given movie ID

@@ -11,6 +11,7 @@
 ################################################################
 
 import os # core
+import ast # core
 import argparse # pip install argparse
 import omdb # pip install omdb
 from airtable import Airtable # pip install airtable-python-wrapper
@@ -21,6 +22,8 @@ def init_argparse():
     parser.add_argument('--movies', required=True, help='path to a text file containing names of movies, one per line')
     parser.add_argument('--fold-the', action='store_true', help='move "The" from beginning to end of title for better sorting')
     parser.add_argument('--include-adult', action='store_true', help='include movies with genre "Adult"')
+    parser.add_argument('--set-field', action='append', help='specify a "key:value" to set a table field')
+    parser.add_argument('--append-field', action='append', help='specify a "key:value" to append into table field')
     parser.add_argument('--verbose', action='store_true', help='print more information about process')
     return parser
 
@@ -53,11 +56,29 @@ def get_movie_ids(name):
           and movie['title'].lower().replace(',', '').replace(':', '') != "the " + name ] }
 
 # Upsert movie given movie data
-def upsert_movie(movies_table, data):
+def upsert_movie(args, movies_table, data):
+    # set all --set-field fields
+    for field in args.set_field:
+        # next(iter(my_dict.items())) gets the first k,v from my_dict
+        (k, v) = next(iter(ast.literal_eval('{'+field+'}').items()))
+        data[k] = v
+    # find existing record, if any
     record = movies_table.match('IMDB URL', data['IMDB URL'])
     if len(record) == 0:
+        # insert
         movies_table.insert(data)
     else:
+        # update while merging in --append-field fields
+        record_fields = record['fields']
+        # use dictionary unpacking to update `record` with `data`
+        data = {**record_fields, **data}
+        for field in args.append_field:
+            # next(iter(my_dict.items())) gets the first k,v from my_dict
+            (k, v) = next(iter(ast.literal_eval('{'+field+'}').items()))
+            if k in data:
+                data[k].append(v)
+            else:
+                data[k] = [v]
         movies_table.update(record['id'], data)
 
 # Get movie metadata given movie ID
@@ -104,10 +125,7 @@ def transform_data(args, data):
         'IMDB Votes': safe_int(data['imdb_votes']),
         'IMDB URL': 'https://www.imdb.com/title/{}/'.format(data['imdb_id']),
         'Box Office': safe_int(data['box_office']),
-        'Production': data['production'],
-        'OmAtData': True,
-        'Verified': False,
-        'New': True }
+        'Production': data['production'] }
 
 def main():
     # get auth keys from environment
@@ -141,7 +159,7 @@ def main():
             movie_data['actors'] = get_multiple_records(actors_table, 'Name', movie_data['actors'])
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
             data_transformed = transform_data(args, movie_data)
-            upsert_movie(movies_table, data_transformed)
+            upsert_movie(args, movies_table, data_transformed)
         if args.verbose:
             for movie_id in movie_ids['excluded']:
                 print('  excluding {}'.format(movie_id))

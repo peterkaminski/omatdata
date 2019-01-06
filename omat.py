@@ -100,6 +100,7 @@ def safe_float(string):
 def get_multiple_records(table, field, names):
     records = {}
     for name in names.split(', '):
+        name = name.replace('(co-director)', '') # for director's names
         records[name] = table.match(field, name)
         if len(records[name]) == 0:
             records[name] = table.insert({field: name})
@@ -150,6 +151,11 @@ def main():
     for movie_name in load_movie_names(args.movies):
         print(movie_name.rstrip())
         movie_ids = get_movie_ids(movie_name.rstrip())
+        # make sure --set-field and --append-field are lists, even if they're empty (for upsert_movie())
+        if args.set_field is None:
+            args.set_field = []
+        if args.append_field is None:
+            args.append_field = []
         for movie_id in movie_ids['included']:
             movie_data = get_movie_data(movie_id)
             if movie_data['genre'] == 'Adult' and not args.include_adult:

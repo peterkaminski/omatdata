@@ -52,9 +52,13 @@ def get_movie_ids(name):
           if movie['title'].lower().replace(',', '').replace(':', '') != name
           and movie['title'].lower().replace(',', '').replace(':', '') != "the " + name ] }
 
-# Insert movie given movie data
-def insert_movie(movies_table, data):
-    movies_table.insert(data)
+# Upsert movie given movie data
+def upsert_movie(movies_table, data):
+    record = movies_table.match('IMDB URL', data['IMDB URL'])
+    if len(record) == 0:
+        movies_table.insert(data)
+    else:
+        movies_table.update(record['id'], data)
 
 # Get movie metadata given movie ID
 def get_movie_data(movie_id):
@@ -137,7 +141,7 @@ def main():
             movie_data['actors'] = get_multiple_records(actors_table, 'Name', movie_data['actors'])
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
             data_transformed = transform_data(args, movie_data)
-            insert_movie(movies_table, data_transformed)
+            upsert_movie(movies_table, data_transformed)
         if args.verbose:
             for movie_id in movie_ids['excluded']:
                 print('  excluding {}'.format(movie_id))

@@ -158,13 +158,15 @@ def main():
 
     # read movie names, insert movies
     for movie_name in load_movie_names(args.movies):
-        print(movie_name.rstrip())
+        movie_name = movie_name.rstrip()
+        print(movie_name)
         movie_ids = get_movie_ids(movie_name.rstrip())
         # make sure --set-field and --append-field are lists, even if they're empty (for upsert_movie())
         if args.set_field is None:
             args.set_field = []
         if args.append_field is None:
             args.append_field = []
+        count = 0
         for movie_id in movie_ids['included']:
             movie_data = get_movie_data(movie_id)
             if movie_data['genre'] == 'Adult' and not args.include_adult:
@@ -175,6 +177,9 @@ def main():
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
             data_transformed = transform_data(args, movie_data)
             upsert_movie(args, movies_table, data_transformed)
+            count += 1
+        if count == 0:
+            print("  NOT FOUND: {}".format(movie_name))
         if args.verbose:
             for movie_id in movie_ids['excluded']:
                 print('  excluding {}'.format(movie_id))

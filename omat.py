@@ -20,6 +20,7 @@ from airtable import Airtable # pip install airtable-python-wrapper (use patched
 def init_argparse():
     parser = argparse.ArgumentParser(description='Load OMDb metadata into an Airtable base.')
     parser.add_argument('--movies', required=True, help='path to a text file containing names of movies, one per line')
+    parser.add_argument('--fold-a', action='store_true', help='move "A" from beginning to end of title for better sorting')
     parser.add_argument('--fold-the', action='store_true', help='move "The" from beginning to end of title for better sorting')
     parser.add_argument('--include-adult', action='store_true', help='include movies with genre "Adult"')
     parser.add_argument('--set-field', action='append', help='specify a "key:value" to set a table field')
@@ -115,6 +116,8 @@ def get_multiple_records(table, field, names):
 # Transform metadata from OMDb to Airtable columns
 def transform_data(args, data):
     title = data['title']
+    if args.fold_a and title.startswith('A '):
+        title = title.replace('A ', '', 1) + ', A'
     if args.fold_the and title.startswith('The '):
         title = title.replace('The ', '', 1) + ', The'
     return {

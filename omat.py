@@ -42,18 +42,21 @@ def get_movie_ids(name):
             'included': [url_split[1].split('/')[0]],
             'excluded': [] }
     # otherwise use name
-    name = name.rsplit(', The')[0].lower().replace(',', '').replace(':', '')
+    name = name.rsplit(', The')[0].rsplit(', A')[0].lower().replace(',', '').replace(':', '')
     movies = omdb.search_movie(name)
     return {
+        # TODO: the included/excluded comprehensions have overgrown; refactor to be more streamlined
         'included':
           [ movie['imdb_id']
           for movie in movies
           if movie['title'].lower().replace(',', '').replace(':', '') == name
+          or movie['title'].lower().replace(',', '').replace(':', '') == "a " + name
           or movie['title'].lower().replace(',', '').replace(':', '') == "the " + name ],
         'excluded':
           [ movie['imdb_id']
           for movie in movies
           if movie['title'].lower().replace(',', '').replace(':', '') != name
+          and movie['title'].lower().replace(',', '').replace(':', '') != "a " + name
           and movie['title'].lower().replace(',', '').replace(':', '') != "the " + name ] }
 
 # Upsert movie given movie data

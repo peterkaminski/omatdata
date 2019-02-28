@@ -10,8 +10,9 @@
 #
 ################################################################
 
-import os # core
 import ast # core
+import os # core
+import re # core
 import argparse # pip install argparse
 import omdb # pip install omdb
 from airtable import Airtable # pip install airtable-python-wrapper (use patched version)
@@ -42,8 +43,12 @@ def get_movie_ids(name):
             'included': [url_split[1].split('/')[0]],
             'excluded': [] }
     # otherwise use name
+    year = re.search(' \((\d{4})\)$', name)
+    if year:
+        name = name[:len(name)-7]
+        year = year[1]
     name = name.rsplit(', The')[0].rsplit(', A')[0].lower().replace(',', '').replace(':', '')
-    movies = omdb.search_movie(name)
+    movies = omdb.search_movie(name, year=int(year)) if year else omdb.search_movie(name)
     return {
         # TODO: the included/excluded comprehensions have overgrown; refactor to be more streamlined
         'included':

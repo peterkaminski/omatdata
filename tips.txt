@@ -1,0 +1,1 @@
+./omat.py --movies tmp2.txt --fold-the --verbose --set-field '"Own Streaming":["Hulu"]' --append-field '"Own Streaming":"Apple"' --set-field '"Verified":False' --set-field '"Box Office":99999'

@@ -1,1 +1,12 @@
 ./omat.py --movies tmp2.txt --fold-the --verbose --set-field '"Own Streaming":["Hulu"]' --append-field '"Own Streaming":"Apple"' --set-field '"Verified":False' --set-field '"Box Office":99999'
+
+principles:
+* a text list of titles (and optional years) is a simple but effective ingest
+* there will be false positives that get into the database; if properly tagged/searched, they shouldn't be hard to remove
+* it's a database of movies, not discs (but what to do about e.g., Animaniacs?)
+
+passes to add a library:
+* add movies, verified = False, new = True, owned = library-type
+* go through new records, and verify
+* remove false positives
+* go back through discs, add in any that were missed/removed

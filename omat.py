@@ -15,7 +15,7 @@ import os # core
 import re # core
 import argparse # pip install argparse
 import omdb # pip install omdb
-from airtable import Airtable # pip install airtable-python-wrapper (use patched version)
+from airtable import Airtable # pip install airtable-python-wrapper
 
 # Set up argparse
 def init_argparse():
@@ -116,7 +116,8 @@ def get_multiple_records(table, field, names):
     records = {}
     for name in names.split(', '):
         name = name.replace('(co-director)', '') # for director's names
-        records[name] = table.match(field, name)
+        # escape single quotes for .match(); see https://github.com/gtalarico/airtable-python-wrapper/issues/11
+        records[name] = table.match(field, name.replace("'", r"\'"))
         if len(records[name]) == 0:
             records[name] = table.insert({field: name})
     return [records[name]['id'] for name in records]

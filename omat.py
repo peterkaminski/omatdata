@@ -185,6 +185,8 @@ def main():
             movie_data['actors'] = get_multiple_records(actors_table, 'Name', movie_data['actors'])
             movie_data['genres'] = get_multiple_records(genres_table, 'Name', movie_data['genre'])
             data_transformed = transform_data(args, movie_data)
+            if args.verbose:
+                print(data_transformed)
             upsert_movie(args, movies_table, data_transformed)
             count += 1
         if count == 0:

@@ -5,4 +5,4 @@ idna==2.8
 omdb==0.10.1
 requests==2.22.0
 six==1.14.0
-urllib3==1.25.7
+urllib3==1.25.8
